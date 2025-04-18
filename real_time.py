@@ -6,22 +6,47 @@ from tensorflow.keras.models import load_model
 from sklearn.preprocessing import StandardScaler
 import joblib
 import time
-import mysql.connector  
+import mysql.connector
+import io
+import exifread
 
-# Load the trained model
+# === Load model and scaler ===
 model = load_model("C:/Users/Admin/Desktop/hiproject/Project/pothole_detector.h5")
-
-# Load the scaler used during training
 scaler = joblib.load("C:/Users/Admin/Desktop/hiproject/Project/scaler.pkl")
 
-# Function to extract HOG features
+# === GPS Helper Functions ===
+def get_decimal_from_dms(dms, ref):
+    degrees = dms[0].num / dms[0].den
+    minutes = dms[1].num / dms[1].den
+    seconds = dms[2].num / dms[2].den
+    decimal = degrees + (minutes / 60.0) + (seconds / 3600.0)
+    if ref in ['S', 'W']:
+        decimal = -decimal
+    return decimal
+
+def extract_gps_from_bytes(image_bytes):
+    try:
+        f = io.BytesIO(image_bytes)
+        tags = exifread.process_file(f, stop_tag="GPS GPSLongitude")
+        gps_lat = tags.get('GPS GPSLatitude')
+        gps_lat_ref = tags.get('GPS GPSLatitudeRef')
+        gps_lon = tags.get('GPS GPSLongitude')
+        gps_lon_ref = tags.get('GPS GPSLongitudeRef')
+        if gps_lat and gps_lat_ref and gps_lon and gps_lon_ref:
+            lat = get_decimal_from_dms(gps_lat.values, gps_lat_ref.values)
+            lon = get_decimal_from_dms(gps_lon.values, gps_lon_ref.values)
+            return lat, lon
+    except:
+        pass
+    return None, None
+
+# === Feature Extraction ===
 def extract_hog_features(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     gray = cv2.resize(gray, (64, 64))
     features = hog(gray, pixels_per_cell=(8, 8), cells_per_block=(2, 2), feature_vector=True)
     return features
 
-# Function to detect pothole contours
 def detect_pothole_contours(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
@@ -35,17 +60,19 @@ def detect_pothole_contours(frame):
             pothole_contours.append(contour)
     return pothole_contours
 
-# ✅ Connect to MySQL
+# === Connect to MySQL ===
 conn = mysql.connector.connect(
     host="localhost",
     user="root",
-    password="Dell123$",  
+    password="Dell123$",
     database="pothole_db"
 )
 cursor = conn.cursor()
 
-# Open video stream (0 = webcam)
-cap = cv2.VideoCapture(0)
+# === Open video stream ===
+url = "https://100.75.50.72:8080"
+cap = cv2.VideoCapture(url)
+
 
 while cap.isOpened():
     ret, frame = cap.read()
@@ -69,28 +96,33 @@ while cap.isOpened():
 
             cv2.putText(frame, "POTHOLE DETECTED!", (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
-            # ✅ Convert image to binary (BLOB)
+            # Convert frame to bytes
             _, buffer = cv2.imencode('.jpg', frame)
             image_data = buffer.tobytes()
-            timestamp = time.strftime("%Y%m%d-%H%M%S")
 
-            # ✅ Insert into MySQL
-            sql = "INSERT INTO detections (timestamp, image_data, confidence) VALUES (%s, %s, %s)"
-            values = (timestamp, image_data, float(pred))
+            # Extract GPS (if available)
+            lat, lon = extract_gps_from_bytes(image_data)
+
+            # Insert to DB
+            timestamp = time.strftime("%Y%m%d-%H%M%S")
+            sql = """
+                INSERT INTO detections (timestamp, image_data, confidence, latitude, longitude)
+                VALUES (%s, %s, %s, %s, %s)
+            """
+            values = (timestamp, image_data, float(pred), lat, lon)
             cursor.execute(sql, values)
             conn.commit()
-            print("✅ Image and detection saved to MySQL")
+            print(f"✅ Stored frame to DB at {timestamp} | Lat: {lat}, Lon: {lon}")
 
         cv2.putText(frame, label, (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
         cv2.imshow("Real-time Pothole Detection", frame)
 
     except Exception as e:
-        print("⚠️ Error processing frame:", str(e))
+        print("⚠️ Error:", e)
 
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
 
-# ✅ Close resources
 cursor.close()
 conn.close()
 cap.release()

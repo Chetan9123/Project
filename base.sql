@@ -10,3 +10,7 @@ CREATE TABLE detections (
 );
 
 TRUNCATE detections
+
+ALTER TABLE detections
+ADD COLUMN latitude DOUBLE,
+ADD COLUMN longitude DOUBLE;

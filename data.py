@@ -3,8 +3,8 @@ import csv
 
 # Define folders with their corresponding labels
 folders = {
-    "normal": r"C:/Users/Admin/Desktop/hiproject/Project/normal",
-    "pothole": r"C:/Users/Admin/Desktop/hiproject/Project/potholes"
+    "normal": r"C:/Users/Admin/Desktop/hiproject/normal",
+    "pothole": r"C:/Users/Admin/Desktop/hiproject/potholes"
 }
 
 csv_file = "dataa.csv"

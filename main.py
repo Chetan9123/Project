@@ -79,8 +79,12 @@ model.fit(X_train, y_train, epochs=15, batch_size=32, validation_data=(X_test, y
 # Save Model
 model.save("pothole_detector.keras")  # Save in the recommended format
 
+# Save Model
+model.save("pothole_detector.keras")  # Save in the recommended format
+model.save("pothole-detection.h5")    # Save in HDF5 format
 
 # Evaluate Model
 loss, accuracy = model.evaluate(X_test, y_test)
 print(f"\nTest Accuracy: {accuracy:.4f}")
+
 

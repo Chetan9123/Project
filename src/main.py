@@ -1,7 +1,7 @@
 import os
 import sys
 from flask import Flask
-from config.config import config
+from config import config
 from src.models import db
 from src.utils.dataset import prepare_dataset
 from src.training.train import train_models
@@ -43,6 +43,4 @@ def main():
     app.run(debug=True)
 
 if __name__ == '__main__':
-    main()
-
-
+    main() 

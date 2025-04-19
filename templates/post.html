@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ post.title }} - Pothole Detection System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 2rem;
+        }
+        .post-container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        .post-image {
+            max-width: 100%;
+            max-height: 400px;
+            object-fit: cover;
+            border-radius: 5px;
+            margin: 1rem 0;
+        }
+        .post-meta {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        .comment {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .comment-meta {
+            color: #6c757d;
+            font-size: 0.8rem;
+        }
+        .back-button {
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="back-button">
+            <a href="{{ url_for('home') }}" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-left"></i> Back to Home
+            </a>
+        </div>
+
+        <div class="post-container">
+            <h1>{{ post.title }}</h1>
+            <div class="post-meta">
+                <i class="bi bi-clock"></i> {{ post.created_date.strftime('%Y-%m-%d %H:%M') }}
+            </div>
+
+            {% if post.upload %}
+            <img src="{{ url_for('static', filename='uploads/' + post.upload.image_path) }}" class="post-image" alt="Uploaded image">
+            {% endif %}
+
+            <div class="post-content mt-4">
+                {{ post.content | safe }}
+            </div>
+
+            {% if post.upload %}
+            <div class="mt-4">
+                <h4>Detection Details</h4>
+                <ul class="list-group">
+                    <li class="list-group-item">
+                        <strong>Pothole Detected:</strong>
+                        <span class="badge {% if post.upload.pothole_detected %}bg-danger{% else %}bg-success{% endif %}">
+                            {{ 'Yes' if post.upload.pothole_detected else 'No' }}
+                        </span>
+                    </li>
+                    <li class="list-group-item">
+                        <strong>Confidence Score:</strong>
+                        {{ "%.2f"|format(post.upload.confidence_score * 100) }}%
+                    </li>
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="post-container">
+            <h3>Comments</h3>
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form action="{{ url_for('add_comment', post_id=post.id) }}" method="POST" class="mb-4">
+                <div class="mb-3">
+                    <label for="content" class="form-label">Add a Comment</label>
+                    <textarea class="form-control" id="content" name="content" rows="3" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Submit Comment</button>
+            </form>
+
+            {% for comment in post.comments %}
+            <div class="comment">
+                <div class="comment-content">
+                    {{ comment.content }}
+                </div>
+                <div class="comment-meta mt-2">
+                    <i class="bi bi-clock"></i> {{ comment.created_date.strftime('%Y-%m-%d %H:%M') }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 

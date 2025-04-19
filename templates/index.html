@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Pothole Detection System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 text-center mb-5">
+        <h1 class="display-4">Pothole Detection System</h1>
+        <p class="lead">Upload road images to detect potholes using AI</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fas fa-upload"></i> Single Image Upload
+            </div>
+            <div class="card-body">
+                <p>Upload a single road image to detect if it contains a pothole.</p>
+                <a href="{{ url_for('upload_file') }}" class="btn btn-primary">Upload Image</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fas fa-images"></i> Batch Upload
+            </div>
+            <div class="card-body">
+                <p>Upload multiple road images at once for batch processing.</p>
+                <a href="{{ url_for('batch_upload') }}" class="btn btn-primary">Batch Upload</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fas fa-code"></i> API Access
+            </div>
+            <div class="card-body">
+                <p>Access our API to integrate pothole detection into your applications.</p>
+                <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#apiModal">API Info</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-info-circle"></i> About This System
+            </div>
+            <div class="card-body">
+                <p>This pothole detection system uses deep learning to identify potholes in road images. The model has been trained on thousands of road images and can accurately distinguish between normal road surfaces and those containing potholes.</p>
+                <p>The system is designed to help road maintenance teams identify and prioritize repairs, improving road safety and reducing maintenance costs.</p>
+                <h5>How it works:</h5>
+                <ol>
+                    <li>Upload a road image</li>
+                    <li>Our AI model analyzes the image</li>
+                    <li>Get instant results showing if a pothole is detected</li>
+                    <li>Download the annotated image with the detection result</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- API Modal -->
+<div class="modal fade" id="apiModal" tabindex="-1" aria-labelledby="apiModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="apiModalLabel">API Documentation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h5>Endpoint: <code>/api/predict</code></h5>
+                <p>Make a POST request to this endpoint with an image file to get prediction results.</p>
+                
+                <h6>Request:</h6>
+                <pre><code>POST /api/predict
+Content-Type: multipart/form-data
+
+file: [image file]</code></pre>
+                
+                <h6>Response:</h6>
+                <pre><code>{
+  "filename": "example.jpg",
+  "prediction": 0.9876,
+  "classification": "Pothole",
+  "result_image": "http://example.com/results/result_example.jpg"
+}</code></pre>
+                
+                <h6>Example (Python):</h6>
+                <pre><code>import requests
+
+url = 'http://your-server/api/predict'
+files = {'file': open('road_image.jpg', 'rb')}
+response = requests.post(url, files=files)
+print(response.json())</code></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

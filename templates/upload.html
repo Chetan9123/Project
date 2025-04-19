@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Image - Pothole Detection System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 text-center mb-4">
+        <h1>Upload Road Image</h1>
+        <p class="lead">Upload a single road image to detect if it contains a pothole</p>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-upload"></i> Image Upload
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data" id="uploadForm">
+                    <div class="upload-area" id="dropArea">
+                        <i class="fas fa-cloud-upload-alt fa-3x mb-3"></i>
+                        <h5>Drag and drop your image here</h5>
+                        <p>or</p>
+                        <input type="file" name="file" id="fileInput" class="d-none" accept="image/*">
+                        <button type="button" class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                            Browse Files
+                        </button>
+                        <p class="mt-2 text-muted">Supported formats: JPG, JPEG, PNG</p>
+                    </div>
+                    <div class="text-center mt-3">
+                        <button type="submit" class="btn btn-success" id="submitBtn" disabled>
+                            <i class="fas fa-check"></i> Analyze Image
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const dropArea = document.getElementById('dropArea');
+    const fileInput = document.getElementById('fileInput');
+    const submitBtn = document.getElementById('submitBtn');
+    const uploadForm = document.getElementById('uploadForm');
+
+    // Prevent default drag behaviors
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, preventDefaults, false);
+        document.body.addEventListener(eventName, preventDefaults, false);
+    });
+
+    // Highlight drop zone when item is dragged over it
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, highlight, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, unhighlight, false);
+    });
+
+    // Handle dropped files
+    dropArea.addEventListener('drop', handleDrop, false);
+
+    // Handle selected files
+    fileInput.addEventListener('change', handleFiles, false);
+
+    function preventDefaults (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    function highlight(e) {
+        dropArea.classList.add('bg-light');
+    }
+
+    function unhighlight(e) {
+        dropArea.classList.remove('bg-light');
+    }
+
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        handleFiles({ target: { files: files } });
+    }
+
+    function handleFiles(e) {
+        const files = e.target.files;
+        if (files.length > 0) {
+            const file = files[0];
+            if (file.type.startsWith('image/')) {
+                submitBtn.disabled = false;
+                dropArea.innerHTML = `
+                    <i class="fas fa-image fa-3x mb-3"></i>
+                    <h5>${file.name}</h5>
+                    <p class="text-muted">${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                `;
+            } else {
+                alert('Please upload an image file');
+                submitBtn.disabled = true;
+                dropArea.innerHTML = `
+                    <i class="fas fa-cloud-upload-alt fa-3x mb-3"></i>
+                    <h5>Drag and drop your image here</h5>
+                    <p>or</p>
+                    <input type="file" name="file" id="fileInput" class="d-none" accept="image/*">
+                    <button type="button" class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                        Browse Files
+                    </button>
+                    <p class="mt-2 text-muted">Supported formats: JPG, JPEG, PNG</p>
+                `;
+            }
+        }
+    }
+</script>
+{% endblock %} 

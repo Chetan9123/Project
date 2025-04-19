@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Detection Results - Pothole Detection System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 text-center mb-4">
+        <h1>Detection Results</h1>
+        <p class="lead">Analysis of uploaded road images</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-chart-bar"></i> Summary
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body text-center">
+                                <h3>{{ results|length }}</h3>
+                                <p>Total Images</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-success text-white">
+                            <div class="card-body text-center">
+                                <h3>{{ results|selectattr('has_pothole', 'equalto', true)|list|length }}</h3>
+                                <p>Potholes Detected</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-info text-white">
+                            <div class="card-body text-center">
+                                <h3>{{ "%.2f"|format(results|selectattr('has_pothole', 'equalto', true)|list|length / results|length * 100) }}%</h3>
+                                <p>Detection Rate</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-images"></i> Image Analysis
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for result in results %}
+                    <div class="col-md-6 mb-4">
+                        <div class="card">
+                            <img src="{{ result.image_path }}" class="card-img-top" alt="Analyzed Image">
+                            <div class="card-body">
+                                <h5 class="card-title">
+                                    {% if result.has_pothole %}
+                                    <span class="badge bg-danger">Pothole Detected</span>
+                                    {% else %}
+                                    <span class="badge bg-success">No Pothole</span>
+                                    {% endif %}
+                                </h5>
+                                <p class="card-text">
+                                    <strong>Confidence:</strong> {{ "%.2f"|format(result.confidence * 100) }}%<br>
+                                    <strong>Location:</strong> {{ result.location }}<br>
+                                    <strong>Timestamp:</strong> {{ result.timestamp }}
+                                </p>
+                                <a href="{{ result.image_path }}" class="btn btn-primary" target="_blank">
+                                    <i class="fas fa-expand"></i> View Full Image
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12 text-center">
+        <a href="{{ url_for('main.upload') }}" class="btn btn-primary">
+            <i class="fas fa-upload"></i> Upload More Images
+        </a>
+        <a href="{{ url_for('main.batch_upload') }}" class="btn btn-success">
+            <i class="fas fa-images"></i> Batch Upload
+        </a>
+    </div>
+</div>
+{% endblock %} 

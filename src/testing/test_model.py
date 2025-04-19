@@ -5,8 +5,8 @@ import joblib
 from sklearn.metrics import classification_report, confusion_matrix, roc_curve, auc
 import matplotlib.pyplot as plt
 import seaborn as sns
-from utils.dataset import prepare_dataset, load_and_prepare_single_image
-from config import config
+from ..utils.dataset import prepare_dataset, load_and_prepare_single_image
+from ...config.config import config
 
 def load_models():
     """Load the trained neural network and random forest models"""

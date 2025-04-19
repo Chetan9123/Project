@@ -1,9 +1,10 @@
 from datetime import datetime
-from flask_sqlalchemy import SQLAlchemy
+from . import db
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
 from time import time
+from ...config.config import config
 
 db = SQLAlchemy()
 

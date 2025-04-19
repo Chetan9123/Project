@@ -6,8 +6,8 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 from sklearn.ensemble import RandomForestClassifier
 import joblib
-from utils.dataset import prepare_dataset, get_dataset_statistics
-from config import config
+from ..utils.dataset import prepare_dataset, get_dataset_statistics
+from ...config.config import config
 
 def create_model(input_dim):
     """Create the neural network model"""

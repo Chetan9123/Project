@@ -11,9 +11,9 @@ from ...config.config import config
 def load_models():
     """Load the trained neural network and random forest models"""
     try:
-        nn_model = load_model('models/pothole_model.h5')
-        rf_model = joblib.load('models/rf_model.pkl')
-        scaler = joblib.load('models/scaler.pkl')
+        nn_model = load_model(config['default'].MODEL_PATH)
+        rf_model = joblib.load(config['default'].RF_MODEL_PATH)
+        scaler = joblib.load(config['default'].SCALER_PATH)
         return nn_model, rf_model, scaler
     except Exception as e:
         print(f"Error loading models: {str(e)}")
@@ -60,95 +60,100 @@ def evaluate_models(X_test, y_test, nn_model, rf_model):
     plt.title('Ensemble Confusion Matrix')
     
     plt.tight_layout()
-    plt.savefig('models/confusion_matrices.png')
+    plt.savefig('results/confusion_matrices.png')
     plt.close()
     
     # Plot ROC curves
     plt.figure(figsize=(10, 6))
     
-    # Neural Network ROC
-    fpr_nn, tpr_nn, _ = roc_curve(y_test, nn_pred_proba)
-    roc_auc_nn = auc(fpr_nn, tpr_nn)
-    plt.plot(fpr_nn, tpr_nn, label=f'Neural Network (AUC = {roc_auc_nn:.2f})')
+    nn_fpr, nn_tpr, _ = roc_curve(y_test, nn_pred_proba)
+    rf_fpr, rf_tpr, _ = roc_curve(y_test, rf_pred_proba)
+    ensemble_fpr, ensemble_tpr, _ = roc_curve(y_test, ensemble_pred_proba)
     
-    # Random Forest ROC
-    fpr_rf, tpr_rf, _ = roc_curve(y_test, rf_pred_proba)
-    roc_auc_rf = auc(fpr_rf, tpr_rf)
-    plt.plot(fpr_rf, tpr_rf, label=f'Random Forest (AUC = {roc_auc_rf:.2f})')
+    nn_auc = auc(nn_fpr, nn_tpr)
+    rf_auc = auc(rf_fpr, rf_tpr)
+    ensemble_auc = auc(ensemble_fpr, ensemble_tpr)
     
-    # Ensemble ROC
-    fpr_ens, tpr_ens, _ = roc_curve(y_test, ensemble_pred_proba)
-    roc_auc_ens = auc(fpr_ens, tpr_ens)
-    plt.plot(fpr_ens, tpr_ens, label=f'Ensemble (AUC = {roc_auc_ens:.2f})')
+    plt.plot(nn_fpr, nn_tpr, label=f'Neural Network (AUC = {nn_auc:.2f})')
+    plt.plot(rf_fpr, rf_tpr, label=f'Random Forest (AUC = {rf_auc:.2f})')
+    plt.plot(ensemble_fpr, ensemble_tpr, label=f'Ensemble (AUC = {ensemble_auc:.2f})')
     
     plt.plot([0, 1], [0, 1], 'k--')
-    plt.xlim([0.0, 1.0])
-    plt.ylim([0.0, 1.05])
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
     plt.title('ROC Curves')
-    plt.legend(loc="lower right")
-    plt.savefig('models/roc_curves.png')
+    plt.legend()
+    plt.savefig('results/roc_curves.png')
     plt.close()
+    
+    return {
+        'nn_accuracy': np.mean(nn_pred == y_test),
+        'rf_accuracy': np.mean(rf_pred == y_test),
+        'ensemble_accuracy': np.mean(ensemble_pred == y_test),
+        'nn_auc': nn_auc,
+        'rf_auc': rf_auc,
+        'ensemble_auc': ensemble_auc
+    }
 
 def test_single_image(image_path, nn_model, rf_model, scaler):
-    """Test a single image using both models"""
+    """Test a single image with both models and return ensemble prediction"""
     try:
-        # Prepare the image
-        features = load_and_prepare_single_image(image_path)
+        # Load and prepare the image
+        features = load_and_prepare_single_image(image_path, scaler)
         
-        # Get predictions
-        nn_pred_proba = nn_model.predict(features)[0][0]
-        rf_pred_proba = rf_model.predict_proba(features)[0][1]
+        # Make predictions
+        nn_pred = nn_model.predict(features.reshape(1, -1))[0][0]
+        rf_pred = rf_model.predict_proba(features.reshape(1, -1))[0][1]
         
         # Ensemble prediction
-        ensemble_pred_proba = (config['default'].NN_WEIGHT * nn_pred_proba + 
-                             config['default'].RF_WEIGHT * rf_pred_proba)
+        ensemble_pred = (config['default'].NN_WEIGHT * nn_pred + 
+                        config['default'].RF_WEIGHT * rf_pred)
         
-        # Print results
-        print(f"\nResults for image: {image_path}")
-        print(f"Neural Network probability: {nn_pred_proba:.4f}")
-        print(f"Random Forest probability: {rf_pred_proba:.4f}")
-        print(f"Ensemble probability: {ensemble_pred_proba:.4f}")
-        print(f"Final prediction: {'Pothole' if ensemble_pred_proba > 0.5 else 'No Pothole'}")
+        # Determine final prediction
+        is_pothole = ensemble_pred > 0.5
+        confidence = float(ensemble_pred if is_pothole else 1 - ensemble_pred)
         
-        return ensemble_pred_proba > 0.5
-        
+        return {
+            'is_pothole': bool(is_pothole),
+            'confidence': confidence,
+            'nn_confidence': float(nn_pred),
+            'rf_confidence': float(rf_pred)
+        }
     except Exception as e:
-        print(f"Error processing image {image_path}: {str(e)}")
+        print(f"Error testing image: {str(e)}")
         return None
 
 def main():
     # Load models
-    print("Loading models...")
     nn_model, rf_model, scaler = load_models()
     if nn_model is None or rf_model is None or scaler is None:
+        print("Failed to load models. Exiting.")
         return
     
     # Prepare test dataset
-    print("\nPreparing test dataset...")
-    X_train, X_test, y_train, y_test, _ = prepare_dataset(
-        'data',
-        test_size=config['default'].TRAIN_TEST_SPLIT,
-        random_state=config['default'].RANDOM_STATE
-    )
+    X_train, X_test, y_train, y_test, _ = prepare_dataset('data')
     
     # Evaluate models
-    print("\nEvaluating models...")
-    evaluate_models(X_test, y_test, nn_model, rf_model)
+    results = evaluate_models(X_test, y_test, nn_model, rf_model)
     
-    # Test single images if provided
-    test_images = [
-        'data/test/pothole1.jpg',
-        'data/test/non_pothole1.jpg'
-    ]
+    print("\nModel Evaluation Results:")
+    print(f"Neural Network Accuracy: {results['nn_accuracy']:.4f}")
+    print(f"Random Forest Accuracy: {results['rf_accuracy']:.4f}")
+    print(f"Ensemble Accuracy: {results['ensemble_accuracy']:.4f}")
+    print(f"Neural Network AUC: {results['nn_auc']:.4f}")
+    print(f"Random Forest AUC: {results['rf_auc']:.4f}")
+    print(f"Ensemble AUC: {results['ensemble_auc']:.4f}")
     
-    print("\nTesting single images...")
-    for image_path in test_images:
-        if os.path.exists(image_path):
-            test_single_image(image_path, nn_model, rf_model, scaler)
-        else:
-            print(f"Image not found: {image_path}")
+    # Test a single image
+    test_image = 'data/test/test_image.jpg'
+    if os.path.exists(test_image):
+        result = test_single_image(test_image, nn_model, rf_model, scaler)
+        if result:
+            print("\nSingle Image Test Result:")
+            print(f"Is Pothole: {result['is_pothole']}")
+            print(f"Confidence: {result['confidence']:.4f}")
+            print(f"Neural Network Confidence: {result['nn_confidence']:.4f}")
+            print(f"Random Forest Confidence: {result['rf_confidence']:.4f}")
 
 if __name__ == '__main__':
     main()

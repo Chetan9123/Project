@@ -3,37 +3,94 @@ import numpy as np
 from skimage.feature import hog, local_binary_pattern
 from skimage import exposure
 import albumentations as A
+from PIL import Image, ImageDraw, ImageFont
+import os
 
-def extract_features(image):
-    """Extract multiple feature sets from an image"""
-    # Convert to grayscale if needed
-    if len(image.shape) == 3:
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    else:
-        gray = image
-        
-    # Resize image to standard size
-    resized = cv2.resize(gray, (128, 128))
+def process_image(image_path):
+    """Process image for feature extraction"""
+    # Read image
+    img = cv2.imread(image_path)
+    if img is None:
+        raise ValueError(f"Could not read image at {image_path}")
     
-    # Extract HOG features with improved parameters
-    hog_features = hog(resized, 
-                      orientations=12,
-                      pixels_per_cell=(8, 8),
-                      cells_per_block=(2, 2),
-                      block_norm='L2-Hys',
-                      visualize=False)
+    # Convert to grayscale
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     
-    # Extract LBP features
-    lbp = local_binary_pattern(resized, 8, 1, method='uniform')
-    lbp_hist = np.histogram(lbp, bins=32, range=(0, 32))[0]
+    # Apply Gaussian blur
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
     
-    # Extract texture features using GLCM
-    glcm = cv2.calcHist([resized], [0], None, [256], [0, 256])
-    glcm = glcm.flatten() / glcm.sum()
+    # Apply adaptive thresholding
+    thresh = cv2.adaptiveThreshold(
+        blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+        cv2.THRESH_BINARY_INV, 11, 2
+    )
     
-    # Combine all features
-    features = np.concatenate([hog_features, lbp_hist, glcm])
+    return thresh
+
+def extract_features(img):
+    """Extract features from processed image"""
+    # Calculate basic statistics
+    mean = np.mean(img)
+    std = np.std(img)
+    
+    # Calculate histogram
+    hist = cv2.calcHist([img], [0], None, [256], [0, 256])
+    hist = hist.flatten() / hist.sum()
+    
+    # Calculate texture features using GLCM
+    glcm = cv2.cornerHarris(img, 2, 3, 0.04)
+    harris_response = np.mean(glcm)
+    
+    # Calculate edge features
+    edges = cv2.Canny(img, 100, 200)
+    edge_density = np.mean(edges > 0)
+    
+    # Combine features
+    features = np.concatenate([
+        [mean, std, harris_response, edge_density],
+        hist
+    ])
+    
     return features
+
+def draw_detection(image_path, is_pothole, confidence):
+    """Draw detection results on image"""
+    # Open original image
+    img = Image.open(image_path)
+    draw = ImageDraw.Draw(img)
+    
+    # Set colors and text
+    color = (255, 0, 0) if is_pothole else (0, 255, 0)
+    text = f"{'Pothole' if is_pothole else 'No Pothole'} ({confidence:.2%})"
+    
+    # Draw border
+    width, height = img.size
+    border_width = 5
+    draw.rectangle(
+        [(0, 0), (width-1, height-1)],
+        outline=color,
+        width=border_width
+    )
+    
+    # Draw text background
+    text_bbox = draw.textbbox((0, 0), text)
+    text_width = text_bbox[2] - text_bbox[0]
+    text_height = text_bbox[3] - text_bbox[1]
+    padding = 10
+    
+    draw.rectangle(
+        [(0, 0), (text_width + 2*padding, text_height + 2*padding)],
+        fill=(0, 0, 0, 128)
+    )
+    
+    # Draw text
+    draw.text(
+        (padding, padding),
+        text,
+        fill=color
+    )
+    
+    return img
 
 def preprocess_image(image_path):
     """Load and preprocess image for prediction with augmentation"""

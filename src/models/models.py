@@ -1,35 +1,95 @@
 from datetime import datetime
-from . import db
+from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
 from time import time
-from ...config.config import config
+from flask import current_app
 
-db = SQLAlchemy()
+# Import the db instance from the __init__.py file
+from . import db
 
-class PotholeDetection(db.Model):
+class PotholePost(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     image_path = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text)
     confidence_score = db.Column(db.Float, nullable=False)
     location = db.Column(db.String(255))
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    status = db.Column(db.String(50), default='pending')  # pending, verified, fixed
+    latitude = db.Column(db.Float)
+    longitude = db.Column(db.Float)
+    address = db.Column(db.String(255))
+    severity = db.Column(db.String(20), default='medium')  # low, medium, high
+    status = db.Column(db.String(50), default='reported')  # reported, verified, in_progress, fixed
+    likes_count = db.Column(db.Integer, default=0)
+    reports_count = db.Column(db.Integer, default=1)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    user = db.relationship('User', backref=db.backref('detections', lazy=True))
+    user = db.relationship('User', backref=db.backref('posts', lazy=True))
+    comments = db.relationship('Comment', backref='post', lazy=True, cascade='all, delete-orphan')
+    likes = db.relationship('Like', backref='post', lazy=True, cascade='all, delete-orphan')
     
     def __repr__(self):
-        return f'<PotholeDetection {self.id}>'
+        return f'<PotholePost {self.id}>'
     
     def to_dict(self):
         return {
             'id': self.id,
             'image_path': self.image_path,
+            'description': self.description,
             'confidence_score': self.confidence_score,
             'location': self.location,
-            'timestamp': self.timestamp.isoformat(),
+            'latitude': self.latitude,
+            'longitude': self.longitude,
+            'address': self.address,
+            'severity': self.severity,
             'status': self.status,
-            'user_id': self.user_id
+            'likes_count': self.likes_count,
+            'reports_count': self.reports_count,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat(),
+            'user': self.user.to_dict(),
+            'comments_count': len(self.comments)
+        }
+
+class Comment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    post_id = db.Column(db.Integer, db.ForeignKey('pothole_post.id'))
+    user = db.relationship('User', backref=db.backref('comments', lazy=True))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'content': self.content,
+            'created_at': self.created_at.isoformat(),
+            'user': self.user.to_dict()
+        }
+
+class Like(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    post_id = db.Column(db.Integer, db.ForeignKey('pothole_post.id'))
+    user = db.relationship('User', backref=db.backref('likes', lazy=True))
+
+class Reaction(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    emoji = db.Column(db.String(10), nullable=False)  # Store emoji character
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    post_id = db.Column(db.Integer, db.ForeignKey('pothole_post.id'))
+    user = db.relationship('User', backref=db.backref('reactions', lazy=True))
+    post = db.relationship('PotholePost', backref=db.backref('reactions', lazy=True))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'emoji': self.emoji,
+            'created_at': self.created_at.isoformat(),
+            'user': self.user.to_dict()
         }
 
 class User(UserMixin, db.Model):
@@ -38,7 +98,11 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128))
     google_id = db.Column(db.String(128), unique=True)
+    avatar_url = db.Column(db.String(255))
+    bio = db.Column(db.Text)
+    location = db.Column(db.String(100))
     is_admin = db.Column(db.Boolean, default=False)
+    reports_count = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):
@@ -71,6 +135,10 @@ class User(UserMixin, db.Model):
             'id': self.id,
             'username': self.username,
             'email': self.email,
+            'avatar_url': self.avatar_url,
+            'bio': self.bio,
+            'location': self.location,
             'is_admin': self.is_admin,
+            'reports_count': self.reports_count,
             'created_at': self.created_at.isoformat()
         } 

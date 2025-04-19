@@ -2,7 +2,7 @@ import os
 
 class Config:
     # Base directory of the project
-    BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+    BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
     
     # Model paths
     MODEL_PATH = os.path.join(BASE_DIR, 'models', 'pothole_model.h5')
@@ -11,6 +11,7 @@ class Config:
     
     # Upload settings
     UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
+    RESULTS_FOLDER = os.path.join(BASE_DIR, 'results')
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
     
@@ -65,6 +66,7 @@ class Config:
     @staticmethod
     def init_app(app):
         os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        os.makedirs(app.config['RESULTS_FOLDER'], exist_ok=True)
         os.makedirs(os.path.dirname(app.config['MODEL_PATH']), exist_ok=True)
         
 class DevelopmentConfig(Config):
